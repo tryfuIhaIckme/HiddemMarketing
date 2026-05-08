@@ -1,0 +1,12 @@
+python-telegram-bot
+natasha
+scikit-learn
+nltk
+requests
+gTTS
+pydub
+SpeechRecognition
+flask
+python-dotenv
+httpx
+setuptools
