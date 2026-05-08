@@ -86,13 +86,13 @@ class IntentClassifier:
                 distance = nltk.edit_distance(preprocessed_text, preprocessed_example)
                 max_len = max(len(preprocessed_text), len(preprocessed_example))
                 
-                # Порог (Threshold) увеличен до 0.5 (50% различий) для большей гибкости
-                if max_len > 0 and distance / max_len <= 0.5:
+                # Порог (Threshold) уменьшен до 0.3 для более точного совпадения
+                if max_len > 0 and distance / max_len <= 0.3:
                     return intent
                     
         # 3. Если Левенштейн не нашел точного совпадения, но ML очень уверен (высокий score)
         top_intent, top_score = intent_scores[0]
-        if top_score > 0.8: # Порог уверенности ML
+        if top_score > 1.0: # Порог уверенности ML повышен
             return top_intent
                 
         return None

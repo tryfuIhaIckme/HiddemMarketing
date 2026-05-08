@@ -3,6 +3,7 @@ import os
 import logging
 import tempfile
 import csv
+import random
 from datetime import datetime
 from typing import Optional
 from dotenv import load_dotenv
@@ -15,7 +16,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from nlp_preprocessing import preprocess_text
 from intent_classifier import IntentClassifier
 from fallback_model import DialogueFallbackModel
-from ad_engine import AdScenarioEngine
+from ad_engine import AdScenarioEngine, get_weather_condition
 from voice_manager import VoiceManager
 
 # ... (logging setup unchanged)
@@ -24,6 +25,8 @@ load_dotenv()
 
 # --- Инициализация ---
 TOKEN = os.getenv("TELEGRAM_TOKEN")
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
+DEFAULT_CITY = os.getenv("DEFAULT_CITY", "Moscow")
 CONFIG_PATH = "bot_config.json"
 
 # Модели
@@ -52,13 +55,14 @@ def log_interaction(user_text: str, intent: str, response: str) -> None:
         ])
 
 def process_pipeline(user_text: str) -> str:
-    """Основная бизнес-логика."""
+    """Основная бизнес-логика (Конвейер)."""
     cleaned_text = preprocess_text(user_text)
     if not cleaned_text:
         return classifier.get_failure_phrase()
 
     intent = classifier.classify(cleaned_text, preprocess_text)
     
+    # 1. СЦЕНАРИЙ А: Реклама по интенту (как было)
     if intent:
         base_response = classifier.get_response(intent)
         product_key = ad_engine.get_product_by_intent(intent)
@@ -67,10 +71,25 @@ def process_pipeline(user_text: str) -> str:
             return f"{base_response}\n\n{ad_message}"
         return base_response
 
+    # 2. СЦЕНАРИЙ Б: Fallback-ответ (Болталка)
     fallback_response = fallback_model.generate_answer(user_text, preprocess_text)
     if fallback_response:
+        # --- НОВАЯ ФИЧА: Реклама по реальной погоде (API) ---
+        # Чтобы не спамить погодой каждый раз, сделаем шанс срабатывания, например, 30%
+        if random.random() < 0.3:
+            # Делаем запрос к API
+            weather_data = get_weather_condition(DEFAULT_CITY, WEATHER_API_KEY) 
+            product_key_weather = ad_engine.get_product_by_weather(weather_data)
+            
+            if product_key_weather:
+                weather_ad = ad_engine.generate_ad_message(product_key_weather)
+                # Добавляем переходную фразу
+                transition = f"\n\nКстати, у нас в {DEFAULT_CITY} сейчас {weather_data['temp']}°C. "
+                return f"{fallback_response}{transition}{weather_ad}"
+        
         return fallback_response
 
+    # 3. Если ничего не подошло
     return classifier.get_failure_phrase()
 
 # --- Асинхронные хэндлеры ---
