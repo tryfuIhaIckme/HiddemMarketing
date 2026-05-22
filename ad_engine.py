@@ -2,7 +2,6 @@ import random
 import requests
 from typing import Optional, Dict, List, Any
 
-# База товаров с шаблонами нативной рекламы (Native Advertising)
 PRODUCTS = {
     "parka": {
         "name": "Зимняя парка 'Arctic Pro'",
@@ -35,18 +34,7 @@ PRODUCTS = {
 
 
 def get_weather_condition(city: str, api_key: str = "") -> Dict[str, Any]:
-    """
-    Получение текущей погоды через Weather API или симуляция (Mocking).
-
-    Args:
-        city (str): Название города.
-        api_key (str): Ключ API OpenWeatherMap.
-
-    Returns:
-        Dict[str, Any]: Словарь с температурой (temp) и состоянием (condition).
-    """
     if not api_key:
-        # Mock-данные для тестирования без ключа
         mock_data = [
             {"temp": -15, "condition": "Clear"},
             {"temp": 5, "condition": "Rain"},
@@ -69,16 +57,10 @@ def get_weather_condition(city: str, api_key: str = "") -> Dict[str, Any]:
 
 
 class AdScenarioEngine:
-    """
-    Движок для управления триггерами рекламы на основе интентов и погоды.
-    """
-
     def __init__(self):
-        """Инициализация движка с отслеживанием истории (History tracking)."""
         self.last_shown_product: Optional[str] = None
 
     def get_product_by_intent(self, intent: str) -> Optional[str]:
-        """Сопоставление интентов (Intents) с конкретными товарами."""
         intent_mapping = {
             "winter_cold": "parka",
             "rain_wind": "windbreaker",
@@ -87,7 +69,6 @@ class AdScenarioEngine:
         return intent_mapping.get(intent)
 
     def get_product_by_weather(self, weather_data: Dict[str, Any]) -> Optional[str]:
-        """Выбор товара на основе данных о погоде (Weather-based triggering)."""
         temp = weather_data.get("temp", 0)
         condition = weather_data.get("condition", "Clear")
 
@@ -103,7 +84,6 @@ class AdScenarioEngine:
         return None
 
     def generate_ad_message(self, product_key: str) -> str:
-        """Генерация случайного рекламного сообщения (Ad message)."""
         if product_key not in PRODUCTS:
             return ""
 

@@ -6,10 +6,8 @@ from collections import Counter
 
 app = Flask(__name__)
 
-# Путь к лог-файлу (тот же, что и в main.py)
 LOG_FILE = "bot_log.csv"
 
-# HTML-шаблон с использованием современного CSS (Pico.css) для красоты
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ru" data-theme="light">
@@ -90,18 +88,15 @@ HTML_TEMPLATE = """
 """
 
 def get_logs_and_stats():
-    """Читает CSV и рассчитывает базовую статистику."""
     logs = []
     if os.path.exists(LOG_FILE):
         with open(LOG_FILE, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
-            next(reader)  # Пропускаем заголовки
+            next(reader)
             logs = list(reader)
     
-    # Разворачиваем список, чтобы новые сообщения были сверху
     logs.reverse()
 
-    # Считаем статистику
     total = len(logs)
     intents = [row[2] for row in logs if row[2] != "None (Fallback)"]
     top_intent = Counter(intents).most_common(1)[0][0] if intents else "N/A"
@@ -119,11 +114,9 @@ def get_logs_and_stats():
 
 @app.route('/')
 def index():
-    """Главная страница админки."""
     logs, stats = get_logs_and_stats()
     return render_template_string(HTML_TEMPLATE, logs=logs, stats=stats)
 
 if __name__ == '__main__':
-    # Запуск Flask сервера на 5000 порту
     print("--- Web Admin Panel запущен на http://127.0.0.1:5000 ---")
     app.run(host='0.0.0.0', port=5000, debug=True)

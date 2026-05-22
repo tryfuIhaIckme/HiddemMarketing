@@ -6,5 +6,4 @@ bot_log.csv
 *.mp3
 *.wav
 dialogues.txt
-!dialogues.txt  # Если ты хочешь, чтобы база диалогов была в репозитории
 trash/
