@@ -7,6 +7,7 @@ import random
 from datetime import datetime
 from typing import Optional
 from dotenv import load_dotenv
+from collections import defaultdict
 
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
@@ -14,7 +15,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from nlp_preprocessing import preprocess_text
 from intent_classifier import IntentClassifier
 from fallback_model import DialogueFallbackModel
-from ad_engine import AdScenarioEngine, get_weather_condition
+from ad_engine import AdScenarioEngine, get_weather_condition, PRODUCTS
 from voice_manager import VoiceManager
 
 load_dotenv()
@@ -32,6 +33,24 @@ fallback_model.load_dataset(preprocess_text)
 
 ad_engine = AdScenarioEngine()
 voice_manager = VoiceManager()
+
+USER_MEMORY = defaultdict(lambda: {
+    "last_product": None,
+    "last_intent": None,
+    "history": []
+})
+
+def update_context(user_id: int, intent: Optional[str], product_key: Optional[str], user_text: str):
+    state = USER_MEMORY[user_id]
+    
+    if product_key:
+        state["last_product"] = product_key
+    if intent:
+        state["last_intent"] = intent
+        
+    state["history"].append(user_text)
+    if len(state["history"]) > 5:
+        state["history"].pop(0)
 
 def log_interaction(user_text: str, intent: str, response: str) -> None:
     log_file = "bot_log.csv"
@@ -55,6 +74,10 @@ def process_pipeline(user_text: str) -> str:
     intent = classifier.classify(cleaned_text, preprocess_text)
     
     if intent:
+        if intent == "weather_info":
+            weather_data = get_weather_condition(DEFAULT_CITY, WEATHER_API_KEY)
+            return f"Сейчас в городе {DEFAULT_CITY}: {weather_data['temp']}°C, {weather_data['condition']}."
+            
         base_response = classifier.get_response(intent)
         product_key = ad_engine.get_product_by_intent(intent)
         if product_key:
@@ -81,14 +104,45 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Привет! Я современный бот магазина «Стиль & Тепло». Чем могу помочь?")
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.message.from_user.id
     user_text = update.message.text
     
     cleaned_text = preprocess_text(user_text)
     intent = classifier.classify(cleaned_text, preprocess_text)
     
-    response_text = process_pipeline(user_text)
-    await update.message.reply_text(response_text)
+    product_key = ad_engine.get_product_by_intent(intent) if intent else None
     
+    if intent == "sizes_info" and USER_MEMORY[user_id]["last_product"]:
+        last_prod = USER_MEMORY[user_id]["last_product"]
+        prod_name = PRODUCTS[last_prod]["name"]
+        base_response = f"Для нашей модели **{prod_name}** размерная сетка стандартная (от XS до XXL). Какой размер вам обычно подходит?"
+        await update.message.reply_text(base_response)
+        
+        update_context(user_id, intent, last_prod, user_text)
+        log_interaction(user_text, intent, base_response)
+        return
+
+    if intent == "price_info" and USER_MEMORY[user_id]["last_product"]:
+        last_prod = USER_MEMORY[user_id]["last_product"]
+        prod_name = PRODUCTS[last_prod]["name"]
+        base_response = f"Модель **{prod_name}** сейчас доступна по специальной цене. Уточнить наличие вашего размера?"
+        await update.message.reply_text(base_response)
+        
+        update_context(user_id, intent, last_prod, user_text)
+        log_interaction(user_text, intent, base_response)
+        return
+
+    response_text = process_pipeline(user_text)
+    
+    mentioned_product = None
+    for prod_k in PRODUCTS.keys():
+        if prod_k in response_text or PRODUCTS[prod_k]["name"] in response_text:
+            mentioned_product = prod_k
+            break
+            
+    update_context(user_id, intent, mentioned_product or product_key, user_text)
+    
+    await update.message.reply_text(response_text)
     log_interaction(user_text, intent, response_text)
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

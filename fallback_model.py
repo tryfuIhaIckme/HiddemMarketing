@@ -1,32 +1,18 @@
 import os
 import nltk
 from typing import Optional, Callable, Dict, List, Set, Tuple
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 class DialogueFallbackModel:
-    """
-    Модель генерации ответов на основе поиска по датасету (Retrieval-based).
-    Использует инвертированный индекс (Inverted Index) для быстрого поиска 
-    и расстояние Левенштейна для выбора лучшего кандидата.
-    """
-
     def __init__(self, dataset_path: str):
-        """
-        Инициализация модели.
-
-        Args:
-            dataset_path (str): Путь к файлу dialogues.txt.
-        """
         self.dataset_path = dataset_path
-        # Структурированный словарь для быстрого поиска по словам
-        self.dialogues_structured_cut: Dict[str, List[Tuple[str, str]]] = {}
+        self.questions: List[str] = []
+        self.answers: List[str] = []
+        self.vectorizer = TfidfVectorizer(analyzer='char_wb', ngram_range=(3, 5))
+        self.X_matrix = None
 
     def load_dataset(self, preprocess_func: Callable[[str], str]) -> None:
-        """
-        Загрузка и парсинг датасета, построение инвертированного индекса.
-
-        Args:
-            preprocess_func (Callable[[str], str]): Функция нормализации текста.
-        """
         if not os.path.exists(self.dataset_path):
             print(f"Ошибка: Файл датасета не найден: {self.dataset_path}")
             return
@@ -38,87 +24,49 @@ class DialogueFallbackModel:
             print(f"Ошибка при чтении файла: {e}")
             return
 
-        # Разбиение на блоки по двойному переносу строки
         blocks = content.split("\n\n")
-        seen_questions: Set[str] = set()
-        temp_index: Dict[str, List[Tuple[str, str]]] = {}
+        temp_questions = []
+        temp_answers = []
+        seen = set()
 
-        for block in blocks:
+        for block in blocks[:20000]:
             lines = [line.strip() for line in block.split("\n") if line.strip()]
             if len(lines) < 2:
                 continue
             
-            # Извлечение вопроса и ответа, удаление маркеров "- "
             question = lines[0].lstrip("- ").strip()
             answer = lines[1].lstrip("- ").strip()
             
-            # Предобработка вопроса (Normalization)
-            preprocessed_q = preprocess_func(question)
-            if not preprocessed_q or preprocessed_q in seen_questions:
-                continue
-                
-            seen_questions.add(preprocessed_q)
-            
-            # Токенизация (Tokenization) на слова для построения индекса
-            words = set(preprocessed_q.split())
-            for word in words:
-                if word not in temp_index:
-                    temp_index[word] = []
-                temp_index[word].append((preprocessed_q, answer))
+            cleaned_q = preprocess_func(question)
+            if cleaned_q and cleaned_q not in seen:
+                seen.add(cleaned_q)
+                temp_questions.append(cleaned_q)
+                temp_answers.append(answer)
 
-        # Оптимизация индекса: ограничение до 1000 пар на слово для производительности
-        for word, pairs in temp_index.items():
-            sorted_pairs = sorted(pairs, key=lambda x: len(x[0]))
-            self.dialogues_structured_cut[word] = sorted_pairs[:1000]
+        self.questions = temp_questions
+        self.answers = temp_answers
+
+        if self.questions:
+            self.X_matrix = self.vectorizer.fit_transform(self.questions)
+            print(f"Успешно индексировано вопросов для Fallback: {len(self.questions)}")
 
     def generate_answer(self, text: str, preprocess_func: Callable[[str], str]) -> Optional[str]:
-        """
-        Поиск лучшего ответа в мини-датасете (Mini-dataset) через Levenshtein Distance.
-
-        Args:
-            text (str): Фраза пользователя.
-            preprocess_func (Callable[[str], str]): Функция нормализации.
-
-        Returns:
-            Optional[str]: Найденный ответ или None.
-        """
-        preprocessed_text = preprocess_func(text)
-        if not preprocessed_text:
+        if self.X_matrix is None or not self.questions:
             return None
-            
-        words = set(preprocessed_text.split())
-        mini_dataset: Set[Tuple[str, str]] = set()
-        
-        # Сбор кандидатов из инвертированного индекса по словам запроса
-        for word in words:
-            if word in self.dialogues_structured_cut:
-                mini_dataset.update(self.dialogues_structured_cut[word])
-        
-        candidates: List[Tuple[float, str]] = []
-        
-        for q, a in mini_dataset:
-            len_q = len(q)
-            if len_q == 0:
-                continue
-                
-            # 1. Проверка разницы длин фраз (Threshold 0.5)
-            if abs(len(preprocessed_text) - len_q) / len_q > 0.5:
-                continue
-                
-            # 2. Расчет взвешенного расстояния Левенштейна (Weighted Distance)
-            distance = nltk.edit_distance(preprocessed_text, q)
-            distance_weighted = distance / len_q
-            
-            # 3. Фильтрация по порогу уверенности (Threshold 0.5)
-            if distance_weighted < 0.5:
-                candidates.append((distance_weighted, a))
-                
-        if not candidates:
+
+        cleaned_query = preprocess_func(text)
+        if not cleaned_query:
             return None
+
+        query_vec = self.vectorizer.transform([cleaned_query])
+        similarities = cosine_similarity(query_vec, self.X_matrix).flatten()
+        best_idx = similarities.argmax()
+        best_score = similarities[best_idx]
+
+        if best_score > 0.45:
+            return self.answers[best_idx]
             
-        # Возвращаем ответ кандидата с минимальной дистанцией (Best match)
-        best_candidate = min(candidates, key=lambda x: x[0])
-        return best_candidate[1]
+        return None
 
 
 if __name__ == "__main__":
