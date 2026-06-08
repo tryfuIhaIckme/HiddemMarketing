@@ -1,4 +1,4 @@
-# Telegram Bot for "Style & Warmth" Store 🧥🤖
+# Telegram Bot for "Style & Warmth" Store 
 
 Умный Telegram-бот для магазина одежды с поддержкой голосовых сообщений, распознаванием намерений, генерацией нативной рекламы и админ-панелью.
 
