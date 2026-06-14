@@ -151,6 +151,27 @@ def process_pipeline(user_text: str, user_id: int) -> tuple[str, Optional[str], 
 
     return prefix + classifier.get_failure_phrase(), intent, sentiment_score
 
+    if intent:
+        # ОБРАБОТКА ПОГОДЫ
+        if intent == "weather_info":
+            user_city = extract_city_entity(user_text)
+            target_city = user_city if user_city else DEFAULT_CITY
+            weather_data = get_weather_condition(target_city, WEATHER_API_KEY)
+            return prefix + f"Сейчас в городе {target_city}: {weather_data['temp']}°C, {weather_data['condition']}.", intent, sentiment_score
+            
+        # ОБРАБОТКА ПРОСТОЙ БОЛТОВНИ (Новое)
+        if intent == "chitchat":
+            base_response = classifier.get_response(intent)
+            return prefix + base_response, intent, sentiment_score
+            
+        # СТАНДАРТНЫЙ ОТВЕТ С РЕКЛАМОЙ
+        base_response = classifier.get_response(intent)
+        product_key = ad_engine.get_product_by_intent(intent)
+        if product_key:
+            ad_message = ad_engine.generate_ad_message(product_key)
+            return prefix + f"{base_response}\n\n{ad_message}", intent, sentiment_score
+        return prefix + base_response, intent, sentiment_score
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Привет! Я современный бот магазина «Стиль & Тепло». Чем могу помочь?")
 
