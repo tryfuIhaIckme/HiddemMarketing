@@ -5,6 +5,7 @@ from natasha import (
     MorphVocab,
     NewsEmbedding,
     NewsMorphTagger,
+    NewsNERTagger,
     Doc
 )
 
@@ -13,6 +14,7 @@ segmenter = Segmenter()
 morph_vocab = MorphVocab()
 emb = NewsEmbedding()
 morph_tagger = NewsMorphTagger(emb)
+ner_tagger = NewsNERTagger(emb)
 
 
 def clean_text(text: str) -> str:
@@ -88,6 +90,27 @@ def preprocess_text(text: Optional[str]) -> str:
     lemmatized = lemmatize_text(cleaned)
     
     return lemmatized
+
+
+def extract_city_entity(text: str) -> Optional[str]:
+    """
+    Анализирует текст и извлекает название локации (города) в именительном падеже.
+    """
+    if not text:
+        return None
+        
+    doc = Doc(text)
+    doc.segment(segmenter)
+    doc.tag_morph(morph_tagger)
+    doc.tag_ner(ner_tagger)
+    
+    for span in doc.spans:
+        if span.type == 'LOC': # LOC означает Location (географический объект)
+            # Лемматизируем найденный токен, чтобы получить город в именительном падеже
+            span.lemmatize(morph_vocab)
+            return span.normal.capitalize() # Например: "в москве" -> "Москва"
+            
+    return None
 
 
 if __name__ == "__main__":
