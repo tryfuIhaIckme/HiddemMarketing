@@ -104,11 +104,19 @@ def extract_city_entity(text: str) -> Optional[str]:
     doc.tag_morph(morph_tagger)
     doc.tag_ner(ner_tagger)
     
+    # Лемматизируем все отдельные токены документа
+    for token in doc.tokens:
+        token.lemmatize(morph_vocab)
+        
+    # Ищем именованную сущность локации (LOC)
     for span in doc.spans:
         if span.type == 'LOC': # LOC означает Location (географический объект)
-            # Лемматизируем найденный токен, чтобы получить город в именительном падеже
-            span.lemmatize(morph_vocab)
-            return span.normal.capitalize() # Например: "в москве" -> "Москва"
+            # Находим токены, которые входят в диапазон этого спана (по символьным индексам)
+            span_tokens = [t for t in doc.tokens if t.start >= span.start and t.stop <= span.stop]
+            if span_tokens:
+                # Собираем леммы токенов в единую строку и форматируем регистр
+                city_name = " ".join([t.lemma for t in span_tokens])
+                return city_name.capitalize() # Например: "владивосток" -> "Владивосток"
             
     return None
 

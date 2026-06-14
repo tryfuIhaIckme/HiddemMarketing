@@ -92,8 +92,7 @@ class IntentClassifier:
                     
         # 3. Если Левенштейн не нашел точного совпадения, но ML очень уверен (высокий score)
         top_intent, top_score = intent_scores[0]
-        if top_score > 0.7: # Порог уверенности ML повышен
-            return top_intent
+        return top_intent
                 
         return None
 
