@@ -102,7 +102,6 @@ def extract_city_entity(text: str) -> Optional[str]:
 
 
 if __name__ == "__main__":
-    # Тестовые примеры для проверки модуля (включая английские термины и цифры)
     test_phrases = [
         "Привет!!! Как дела???",
         "Я хочу купить тёплую парку Arctic Pro размера XL",
