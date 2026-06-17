@@ -21,12 +21,6 @@ def clean_text(text: str) -> str:
     """
     Очистка входного текста: удаление спецсимволов и лишних пробелов.
     Оставляет русские и английские буквы, цифры и дефисы.
-
-    Args:
-        text (str): Исходная сырая строка (Raw text).
-
-    Returns:
-        str: Очищенная строка в нижнем регистре (Lowercase).
     """
     if not text:
         return ""
@@ -35,7 +29,6 @@ def clean_text(text: str) -> str:
     text = text.lower()
     
     # Обновленный Regex: оставляем а-я, a-z, цифры 0-9, дефис и пробел.
-    # Это критично для распознавания брендов (Arctic Pro) и размеров (XL).
     text = re.sub(r'[^а-яёa-z0-9\-\s]', ' ', text)
     
     # Замена множественных пробелов на один и удаление пробелов по краям (Strip)
@@ -48,19 +41,12 @@ def lemmatize_text(text: str) -> str:
     """
     Лемматизация текста с использованием библиотеки Natasha.
     Приводит слова к их словарной форме (Lemma).
-
-    Args:
-        text (str): Очищенная входная строка.
-
-    Returns:
-        str: Строка, состоящая из лемм слов.
     """
     if not text:
         return ""
         
     doc = Doc(text)
     
-    # Применение сегментации (Segmentation) и морфологического теггера (Morphological Tagger)
     doc.segment(segmenter)
     doc.tag_morph(morph_tagger)
     
@@ -76,12 +62,6 @@ def lemmatize_text(text: str) -> str:
 def preprocess_text(text: Optional[str]) -> str:
     """
     Главный оркестратор (Pipeline) предобработки: очистка + лемматизация.
-
-    Args:
-        text (Optional[str]): Сырой текст от пользователя.
-
-    Returns:
-        str: Полностью нормализованный текст, готовый для ML-модели.
     """
     if text is None or not text.strip():
         return ""

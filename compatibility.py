@@ -45,4 +45,4 @@ def apply_patches():
         sys.modules['urllib3.contrib.appengine'] = types.ModuleType('appengine')
 
 apply_patches()
-print("✅ Система совместимости адаптирована под ваше окружение")
+print("Система совместимости адаптирована под ваше окружение")

@@ -7,18 +7,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import LinearSVC
 
 class IntentClassifier:
-    """
-    Класс для классификации намерений (Intent Classification) с использованием 
-    TF-IDF векторизации и LinearSVC, с гибкой валидацией через расстояние Левенштейна.
-    """
-
+    
     def __init__(self, config_path: str):
-        """
-        Инициализация классификатора.
-
-        Args:
-            config_path (str): Путь к JSON-файлу с конфигурацией.
-        """
         self.config_path = config_path
         self.config = self._load_config()
         
@@ -37,9 +27,6 @@ class IntentClassifier:
             return json.load(f)
 
     def train(self, preprocess_func: Callable[[str], str]) -> None:
-        """
-        Извлекает данные из конфига, предобрабатывает их и обучает ML-модель.
-        """
         x = []
         y = []
         
@@ -56,9 +43,6 @@ class IntentClassifier:
             self.is_trained = True
 
     def classify(self, text: str, preprocess_func: Callable[[str], str]) -> Optional[str]:
-        """
-        Предсказывает интент с повышенной надежностью и гибкостью.
-        """
         if not self.is_trained:
             return None
             
